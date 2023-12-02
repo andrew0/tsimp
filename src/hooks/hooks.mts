@@ -6,7 +6,7 @@ import type {
   LoadHook,
   ResolveHook,
 } from 'node:module'
-import { resolve as pathResolve } from 'node:path'
+import { extname, resolve as pathResolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { format } from 'node:util'
 import { MessagePort } from 'node:worker_threads'
@@ -92,10 +92,20 @@ export const load: LoadHook = async (url, context, nextLoad) => {
     }
     const format = classifyModule(inputFile)
     hookedCJS ||= format === 'commonjs'
+    const responseURL = new URL(url)
+    const sourceExtension = extname(responseURL.pathname)
+    const compiledExtension = extname(fileName)
+    /* c8 ignore start */
+    responseURL.pathname =
+      (sourceExtension
+        ? responseURL.pathname.slice(0, -sourceExtension.length)
+        : responseURL.pathname) + compiledExtension
+    /* c8 ignore stop */
     return {
       source: await readFile(fileName, 'utf8'),
       shortCircuit: true,
       format,
+      responseURL: String(responseURL),
     }
   }
 

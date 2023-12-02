@@ -128,21 +128,29 @@ t.test('load', async t => {
   })
 
   t.test('do a compile, with diagnostics', async t => {
-    const dir = t.testdir({ file: 'contents' })
+    const dir = t.testdir({ 'file-compiled.js': 'contents' })
     const nextLoad = (url: string, context?: LoadHookContext) => ({
       url,
       ...context,
     })
     delete MockDaemonClient.compileRequest
     MockDaemonClient.compileResponse = {
-      fileName: resolve(dir, 'file'),
+      fileName: resolve(dir, 'file-compiled.js'),
       diagnostics: ['diagnostics'],
     }
-    t.strictSame(await hooks.load(import.meta.url, {}, nextLoad), {
-      source: 'contents',
-      shortCircuit: true,
-      format: 'module',
-    })
+    t.strictSame(
+      await hooks.load(
+        String(pathToFileURL(resolve(dir, 'file.ts'))),
+        {},
+        nextLoad
+      ),
+      {
+        source: 'contents',
+        shortCircuit: true,
+        format: 'module',
+        responseURL: String(pathToFileURL(resolve(dir, 'file.js'))),
+      }
+    )
     t.strictSame(stderrWrites, ['diagnostics\n'])
     stderrWrites.length = 0
   })
@@ -212,6 +220,9 @@ t.test('load', async t => {
       format: 'commonjs',
       source: readFileSync(resolve(dir, 'project/foo.js'), 'utf8'),
       shortCircuit: true,
+      responseURL: String(
+        pathToFileURL(resolve(dir, 'project/foo.js'))
+      ),
     })
     const outRes = await hooks.load(
       String(pathToFileURL(resolve(dir, 'outside.js'))),
